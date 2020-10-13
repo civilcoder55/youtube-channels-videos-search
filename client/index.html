@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Youtube Channels' Videos Search</title>
+    <link href="https://cdn.jsdelivr.net/gh/halfmoonui/halfmoon@1.0.1/css/halfmoon.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha256-eZrrJcwDc/3uDhsdt61sL2oOBY362qM3lon1gyExkL0=" crossorigin="anonymous">
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body data-set-preferred-theme-onload="true">
+    <div class="page-wrapper">
+      <div class="sticky-alerts"></div>
+      <div class="content-wrapper">
+        <nav class="navbar">
+          <a href="#" class="navbar-brand" style="font-size: unset;"> &#127909 Search Channels Videos </a>
+          <div class="navbar-content ml-auto">
+            <button class="btn btn-action mr-5" type="button" onclick="toggleDemo()" aria-label="Toggle dark mode">
+              <i class="fa fa-moon-o" aria-hidden="true"></i>
+          </button>
+          </div>
+        </nav>
+        <br />
+        <main class="container d-flex justify-content-center">
+          <form class="form-inline" style="width: 50%; margin-top: 100px" autocomplete="off">
+            <div class="form-group">
+              <input id="link" type="text" class="form-control" placeholder="Enter channel link" />
+              <div class="text-right">
+                <input class="btn btn-primary" id="search" type="submit" value="Get" />
+              </div>
+            </div>
+          </form>
+        </main>
+        <main class="container d-flex justify-content-center">
+          <form class="form-inline" style="width: 35%" autocomplete="off">
+            <div class="form-group">
+              <input id="filter" type="text" class="form-control" placeholder="search channel videos" disabled />
+            </div>
+          </form>
+        </main>
+        <div class="container-fluid">
+          <!-- First row -->
+          <div class="row d-flex" id="videos"></div>
+        </div>
+        <div id="loading" class="container d-flex justify-content-center" style="visibility: hidden;margin-top: 150px">
+          <span class="emoji hourglass" role="img" aria-label="hourglass"></span>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/gh/halfmoonui/halfmoon@1.0.1/js/halfmoon.min.js"></script>
+    <script src="index.js"></script>
+</html>
