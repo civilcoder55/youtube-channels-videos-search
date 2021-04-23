@@ -12,7 +12,7 @@ function alert() {
 function createVideoCard(video) {
   const colDiv = document.createElement("div");
   colDiv.className = "col-md-3";
-  colDiv.id = video.id.videoId;
+  colDiv.id = video.snippet.resourceId.videoId;
 
   const wDiv = document.createElement("div");
   wDiv.className = "w-400 mw-full";
@@ -28,7 +28,7 @@ function createVideoCard(video) {
 
   const link = document.createElement("a");
   link.setAttribute("target", "_blank");
-  link.href = `https://www.youtube.com/watch?v=${video.id.videoId}`;
+  link.href = `https://www.youtube.com/watch?v=${video.snippet.resourceId.videoId}`;
 
   const img = document.createElement("img");
   const imageRes = video.snippet.thumbnails.standard || video.snippet.thumbnails.medium || video.snippet.thumbnails.high;
@@ -52,7 +52,6 @@ document.getElementById("search").addEventListener("click", (e) => {
   e.preventDefault();
   loading.style.visibility = "visible";
   videosContainer.innerHTML = "";
-  
 
   link = document.getElementById("link").value;
   fetch(`http://localhost:5000/videos?link=${link}`)
@@ -67,7 +66,7 @@ document.getElementById("search").addEventListener("click", (e) => {
         document.getElementById("filter").disabled = false;
         res.forEach((video) => {
           try {
-            if (video.id.kind != "youtube#video") {
+            if (video.kind != "youtube#playlistItem") {
               return;
             }
             const videoElement = createVideoCard(video);

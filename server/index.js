@@ -37,7 +37,7 @@ const getChannelId = (link) => {
   return fetch(link)
     .then((response) => response.text())
     .then((response) => {
-      var Regexp = /"channelId":"([a-zA-Z0-9_\-]+)"/g;
+      var Regexp = /"channelId" content="([a-zA-Z0-9_\-]+)"/g;
       var match = Regexp.exec(response);
       if (!match) {
         return null;
@@ -47,9 +47,10 @@ const getChannelId = (link) => {
 };
 
 const getVideos = (channelId, pageToken) => {
-  const url = `https://www.googleapis.com/youtube/v3/search?key=${
+  const playlistId = channelId.substr(0, 1) + "U" + channelId.substr(2);
+  const url = `https://www.googleapis.com/youtube/v3/playlistItems?key=${
     process.env.GOOGLE_API_KEY
-  }&channelId=${channelId}&part=snippet&order=date&maxResults=50${pageToken ? `&pageToken=${pageToken}` : ""}`;
+  }&playlistId=${playlistId}&part=snippet,contentDetails&maxResults=50${pageToken ? `&pageToken=${pageToken}` : ""}`;
   return fetch(url).then((response) => response.json());
 };
 
@@ -90,21 +91,16 @@ app.get("/videos", async (req, res, next) => {
   res.json(videos);
 });
 
-function notFound(req, res, next) {
+app.use((req, res, next) => {
   res.status(404);
-  const error = new Error("Not Found");
-  next(error);
-}
-
-function errorHandler(error, req, res, next) {
+  next(new Error("Not Found"));
+});
+app.use((error, req, res, next) => {
   res.status(res.statusCode || 500);
   res.json({
     error: error.message,
   });
-}
-
-app.use(notFound);
-app.use(errorHandler);
+});
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
