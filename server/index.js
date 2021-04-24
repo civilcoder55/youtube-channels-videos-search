@@ -26,69 +26,95 @@ app.use(morgan("tiny"));
 app.use(cors());
 app.use(responseTime());
 
-const getChannelId = (link) => {
+const getChannelInfo = (link) => {
   //check if link is a valid youtube channel link
   var Regexp = /^(?:http)s?:\/\/(?:www.)?youtube.com\/c\/([a-zA-Z0-9\-]+)/g;
   var valid = Regexp.exec(link);
   if (!valid) {
     return null;
   }
-  // if valid then extract the channel id from html page (there are different methods to get this id)
-  return fetch(link)
+  // if valid then extract the channel id and from html page (there are different methods to get this id)
+  return fetch(link + "/about?hl=en")
     .then((response) => response.text())
     .then((response) => {
-      var Regexp = /"channelId" content="([a-zA-Z0-9_\-]+)"/g;
-      var match = Regexp.exec(response);
-      if (!match) {
+      let channelIdRegex = /"channelId" content="([a-zA-Z0-9_\-]+)"/g;
+      let channelIdMatch = channelIdRegex.exec(response);
+      if (!channelIdMatch) {
         return null;
       }
-      return match[1];
+      let channelId = channelIdMatch[1];
+      let playlistId = channelId.substr(0, 1) + "U" + channelId.substr(2);
+      return {
+        channelId,
+        playlistId,
+      };
     });
 };
 
-const getVideos = (channelId, pageToken) => {
-  const playlistId = channelId.substr(0, 1) + "U" + channelId.substr(2);
+const getVideos = ({ playlistId, pageToken, maxResults }) => {
   const url = `https://www.googleapis.com/youtube/v3/playlistItems?key=${
     process.env.GOOGLE_API_KEY
-  }&playlistId=${playlistId}&part=snippet,contentDetails&maxResults=50${pageToken ? `&pageToken=${pageToken}` : ""}`;
+  }&playlistId=${playlistId}&part=snippet,contentDetails&maxResults=${maxResults}${pageToken ? `&pageToken=${pageToken}` : ""}`;
   return fetch(url).then((response) => response.json());
 };
 
 app.get("/videos", async (req, res, next) => {
-  let channelId = await getChannelId(req.query.link);
-
-  if (!channelId) {
-    const error = new Error("invalid channel");
-    return next(error);
+  let channelInfo = await getChannelInfo(req.query.link);
+  if (!channelInfo) {
+    return next(new Error("invalid channel"));
   }
 
   // check if channelId has cached data or not
-  const cachedData = await GET_R(channelId);
+  const cachedData = await GET_R(channelInfo.channelId);
   if (cachedData) {
-    res.json(JSON.parse(cachedData));
-    return;
+    let page = await getVideos({ playlistId: channelInfo.playlistId, pageToken: null, maxResults: 0 });
+    let parsedCachedData = JSON.parse(cachedData);
+    if (page.pageInfo.totalResults == parsedCachedData.totalResults) {
+      console.log("Get " + parsedCachedData.totalResults + " Cached Video/s");
+      return res.json(parsedCachedData.videos);
+    }
+
+    // if new videos less than 1 page of 50 then get these videos and recache
+    let videos = parsedCachedData.videos;
+    let newVideos = page.pageInfo.totalResults - parsedCachedData.totalResults;
+    if (newVideos <= 50) {
+      page = await getVideos({ playlistId: channelInfo.playlistId, pageToken: null, maxResults: newVideos });
+      videos = videos.concat(page.items);
+      await SET_R(
+        channelInfo.channelId,
+        JSON.stringify({
+          totalResults: page.pageInfo.totalResults,
+          videos,
+        })
+      );
+      console.log("Get " + parsedCachedData.totalResults + " Cached Video/s && " + newVideos + " New Video/s");
+      return res.json(videos);
+    }
   }
 
-  // else continue fetching data
-  let page = await getVideos(channelId);
+  // else fetch all videos and cache them
+  let page = await getVideos({ playlistId: channelInfo.playlistId, pageToken: null, maxResults: 50 });
   if (page.error) {
-    res.json({ message: page.error.message });
-    return;
+    return res.json({
+      message: page.error.message,
+    });
   }
   let videos = page.items;
   while (page.nextPageToken) {
-    page = await getVideos(channelId, page.nextPageToken);
+    page = await getVideos({ playlistId: channelInfo.playlistId, pageToken: page.nextPageToken, maxResults: 50 });
     videos = videos.concat(page.items);
   }
 
   // save data in redis as cache
-  const cacheData = await SET_R(
-    channelId,
-    JSON.stringify(videos),
-    "EX",
-    3600 // set expiring time to one hour as example
+  await SET_R(
+    channelInfo.channelId,
+    JSON.stringify({
+      totalResults: page.pageInfo.totalResults,
+      videos,
+    })
   );
-  res.json(videos);
+  console.log("Get " + page.pageInfo.totalResults + " New Video/s");
+  return res.json(videos);
 });
 
 app.use((req, res, next) => {
