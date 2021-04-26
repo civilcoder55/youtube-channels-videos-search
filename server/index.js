@@ -28,15 +28,22 @@ app.use(responseTime());
 
 const getChannelInfo = (link) => {
   //check if link is a valid youtube channel link
-  var Regexp = /^(?:http)s?:\/\/(?:www.)?youtube.com\/c\/([a-zA-Z0-9\-]+)/g;
+  var Regexp = /^(?:http)s?:\/\/(?:www.)?youtube.com\/(?:c\/([a-zA-Z0-9\-]+)|channel\/(UC[a-zA-Z0-9\-]+))/g;
   var valid = Regexp.exec(link);
   if (!valid) {
     return null;
+  }
+  if ((channelId = valid[2])) {
+    return {
+      channelId,
+      playlistId: channelId.substr(0, 1) + "U" + channelId.substr(2),
+    };
   }
   // if valid then extract the channel id and from html page (there are different methods to get this id)
   return fetch(link + "/about?hl=en")
     .then((response) => response.text())
     .then((response) => {
+      console.log("inside fetch");
       let channelIdRegex = /"channelId" content="([a-zA-Z0-9_\-]+)"/g;
       let channelIdMatch = channelIdRegex.exec(response);
       if (!channelIdMatch) {
@@ -77,7 +84,7 @@ app.get("/videos", async (req, res, next) => {
     // if new videos less than 1 page of 50 then get these videos and recache
     let videos = parsedCachedData.videos;
     let newVideos = page.pageInfo.totalResults - parsedCachedData.totalResults;
-    if (newVideos <= 50) {
+    if (newVideos > 0 && newVideos <= 50) {
       page = await getVideos({ playlistId: channelInfo.playlistId, pageToken: null, maxResults: newVideos });
       videos = videos.concat(page.items);
       await SET_R(
